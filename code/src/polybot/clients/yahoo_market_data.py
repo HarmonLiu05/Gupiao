@@ -66,6 +66,10 @@ class YahooMarketDataClient:
             market_cap=int(market_cap) if market_cap is not None else None,
         )
 
+    def get_quotes(self, symbols: list[str]) -> list[StockQuote]:
+        normalized = [symbol.strip().upper() for symbol in symbols if symbol.strip()]
+        return [self.get_quote(symbol) for symbol in normalized]
+
     def get_expirations(self, symbol: str) -> list[str]:
         ticker = self._ticker_factory(symbol.upper())
         return [str(item) for item in ticker.options]

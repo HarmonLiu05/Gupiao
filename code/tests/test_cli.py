@@ -49,6 +49,20 @@ def test_quote_command_prints_stock_price(monkeypatch):
     assert "USD" in result.output
 
 
+def test_quote_command_supports_json_output(monkeypatch):
+    class FakeYahooClient:
+        def get_quote(self, symbol):
+            return StockQuote(symbol=symbol.upper(), last_price="212.34", currency="USD")
+
+    monkeypatch.setattr("polybot.cli.YahooMarketDataClient", FakeYahooClient)
+
+    result = CliRunner().invoke(app, ["quote", "aapl", "--output", "json"])
+
+    assert result.exit_code == 0
+    assert '"symbol": "AAPL"' in result.output
+    assert '"last_price": "212.34"' in result.output
+
+
 def test_options_command_prints_filtered_contracts(monkeypatch):
     class FakeYahooClient:
         def get_option_chain(self, symbol, expiration, side, min_strike, max_strike):
@@ -99,6 +113,31 @@ def test_options_command_prints_filtered_contracts(monkeypatch):
     assert "5.6" in result.output
 
 
+def test_options_command_supports_csv_output(monkeypatch):
+    class FakeYahooClient:
+        def get_option_chain(self, symbol, expiration, side, min_strike, max_strike):
+            return OptionChainSnapshot(
+                symbol="AAPL",
+                expiration="2026-05-15",
+                contracts=[
+                    OptionContract(
+                        contract_symbol="AAPL260515C00210000",
+                        side="call",
+                        strike="210",
+                        last_price="5.5",
+                    )
+                ],
+            )
+
+    monkeypatch.setattr("polybot.cli.YahooMarketDataClient", FakeYahooClient)
+
+    result = CliRunner().invoke(app, ["options", "AAPL", "--output", "csv"])
+
+    assert result.exit_code == 0
+    assert "symbol,expiration,contract,side,strike,last_price" in result.output
+    assert "AAPL,2026-05-15,AAPL260515C00210000,call,210,5.5" in result.output
+
+
 def test_quote_command_prints_zero_values(monkeypatch):
     class FakeYahooClient:
         def get_quote(self, symbol):
@@ -116,6 +155,105 @@ def test_quote_command_prints_zero_values(monkeypatch):
 
     assert result.exit_code == 0
     assert "ZERO\t0\tUSD\t0\t0" in result.output
+
+
+def test_quotes_command_prints_csv(monkeypatch):
+    class FakeYahooClient:
+        def get_quotes(self, symbols):
+            assert symbols == ["AAPL", "MSFT"]
+            return [
+                StockQuote(symbol="AAPL", last_price="212.34", currency="USD"),
+                StockQuote(symbol="MSFT", last_price="499.50", currency="USD"),
+            ]
+
+    monkeypatch.setattr("polybot.cli.YahooMarketDataClient", FakeYahooClient)
+
+    result = CliRunner().invoke(app, ["quotes", "AAPL,MSFT", "--output", "csv"])
+
+    assert result.exit_code == 0
+    assert "AAPL" in result.output
+    assert "MSFT" in result.output
+    assert "symbol,last_price,currency" in result.output
+
+
+def test_quotes_command_reads_watchlist_file(monkeypatch, tmp_path):
+    watchlist = tmp_path / "watchlist.txt"
+    watchlist.write_text("# comment\nAAPL\n\nMSFT\n", encoding="utf-8")
+
+    class FakeYahooClient:
+        def get_quotes(self, symbols):
+            assert symbols == ["AAPL", "MSFT"]
+            return [StockQuote(symbol=symbol, last_price="1", currency="USD") for symbol in symbols]
+
+    monkeypatch.setattr("polybot.cli.YahooMarketDataClient", FakeYahooClient)
+
+    result = CliRunner().invoke(app, ["quotes", "--file", str(watchlist), "--output", "table"])
+
+    assert result.exit_code == 0
+    assert "AAPL" in result.output
+    assert "MSFT" in result.output
+
+
+def test_expirations_command_prints_available_dates(monkeypatch):
+    class FakeYahooClient:
+        def get_expirations(self, symbol):
+            assert symbol == "aapl"
+            return ["2026-05-15", "2026-06-19"]
+
+    monkeypatch.setattr("polybot.cli.YahooMarketDataClient", FakeYahooClient)
+
+    result = CliRunner().invoke(app, ["expirations", "aapl"])
+
+    assert result.exit_code == 0
+    assert "AAPL" in result.output
+    assert "2026-05-15" in result.output
+
+
+def test_expirations_command_supports_json_output(monkeypatch):
+    class FakeYahooClient:
+        def get_expirations(self, symbol):
+            return ["2026-05-15"]
+
+    monkeypatch.setattr("polybot.cli.YahooMarketDataClient", FakeYahooClient)
+
+    result = CliRunner().invoke(app, ["expirations", "aapl", "--output", "json"])
+
+    assert result.exit_code == 0
+    assert '"symbol": "AAPL"' in result.output
+    assert '"expiration": "2026-05-15"' in result.output
+
+
+def test_quotes_command_requires_symbols_or_file():
+    result = CliRunner().invoke(app, ["quotes"])
+
+    assert result.exit_code == 2
+    assert "provide symbols or --file" in result.output
+
+
+def test_options_command_prints_no_match_message(monkeypatch):
+    class FakeYahooClient:
+        def get_option_chain(self, symbol, expiration, side, min_strike, max_strike):
+            return OptionChainSnapshot(symbol="AAPL", expiration="2026-05-15", contracts=[])
+
+    monkeypatch.setattr("polybot.cli.YahooMarketDataClient", FakeYahooClient)
+
+    result = CliRunner().invoke(app, ["options", "AAPL", "--min-strike", "999999"])
+
+    assert result.exit_code == 0
+    assert "no contracts matched" in result.output.lower()
+
+
+def test_market_data_errors_are_user_facing(monkeypatch):
+    class FakeYahooClient:
+        def get_quote(self, symbol):
+            raise RuntimeError("timeout")
+
+    monkeypatch.setattr("polybot.cli.YahooMarketDataClient", FakeYahooClient)
+
+    result = CliRunner().invoke(app, ["quote", "AAPL"])
+
+    assert result.exit_code == 1
+    assert "market data unavailable: timeout" in result.output
 
 
 def test_options_command_rejects_invalid_side():

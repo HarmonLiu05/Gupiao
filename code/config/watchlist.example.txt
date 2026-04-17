@@ -1,0 +1,6 @@
+# US stock watchlist
+AAPL
+MSFT
+NVDA
+SPY
+QQQ

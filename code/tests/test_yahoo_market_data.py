@@ -94,6 +94,23 @@ def test_get_quote_accepts_camel_case_fast_info_keys():
     assert quote.market_cap == 3100000000
 
 
+def test_get_quotes_returns_multiple_symbols():
+    client = YahooMarketDataClient(ticker_factory=FakeTicker)
+
+    quotes = client.get_quotes(["aapl", "msft", " "])
+
+    assert [item.symbol for item in quotes] == ["AAPL", "MSFT"]
+    assert all(item.last_price is not None for item in quotes)
+
+
+def test_get_expirations_returns_available_dates():
+    client = YahooMarketDataClient(ticker_factory=FakeTicker)
+
+    expirations = client.get_expirations("aapl")
+
+    assert expirations == ["2026-05-15", "2026-06-19"]
+
+
 def test_get_option_chain_filters_side_and_strike_range():
     client = YahooMarketDataClient(ticker_factory=FakeTicker)
 

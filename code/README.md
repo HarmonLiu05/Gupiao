@@ -16,6 +16,8 @@ python -m pip install -e ".[dev]"
 py -3.12 -m polybot geocheck
 py -3.12 -m polybot markets --query "fed"
 py -3.12 -m polybot quote AAPL
+py -3.12 -m polybot quotes AAPL,MSFT,NVDA --output table
+py -3.12 -m polybot expirations AAPL
 py -3.12 -m polybot options AAPL --side calls --min-strike 200 --max-strike 230
 py -3.12 -m polybot paper-run --markets config/markets.example.json --fair-values config/fair_values.example.csv
 py -3.12 -m polybot live-run --markets config/markets.example.json --fair-values config/fair_values.example.csv
@@ -32,6 +34,21 @@ py -3.12 -m polybot cancel-all --market <condition_id>
 py -3.12 -m polybot quote AAPL
 ```
 
+批量查看股票报价：
+
+```bash
+py -3.12 -m polybot quotes AAPL,MSFT,NVDA --output table
+py -3.12 -m polybot quotes --file config/watchlist.example.txt --output csv
+```
+
+`config/watchlist.example.txt` 每行一个 symbol，允许空行和以 `#` 开头的注释行。
+
+查看某个 symbol 的可用期权到期日：
+
+```bash
+py -3.12 -m polybot expirations AAPL
+```
+
 查看期权链：
 
 ```bash
@@ -44,7 +61,9 @@ py -3.12 -m polybot options AAPL --side calls --min-strike 200 --max-strike 230
 py -3.12 -m polybot options TSLA --expiration 2026-05-15 --side both
 ```
 
-`yfinance` 适合个人研究和低频观察。它不是官方交易级实时行情源，不建议用于真实交易决策。股票日线、延迟报价和低频观察通常有免费方案；美股期权链可以免费拉取部分字段，但完整、稳定、实时的 OPRA 期权报价通常需要付费。
+行情命令的 `--output` 支持 `table`、`json`、`csv`。默认是 tab 分隔的 `table`，便于直接在终端查看；`json` 和 `csv` 更适合交给其他脚本继续处理。
+
+`yfinance` 适合个人研究和低频观察。它不是官方交易级实时行情源，不建议用于真实交易决策。股票日线、延迟报价和低频观察通常有免费方案；美股期权链可以免费拉取部分字段，但完整、稳定、实时的 OPRA 期权报价通常需要付费。免费源返回的 `bid` / `ask` 可能为空或为 `0.0`。
 
 若需要稳定、完整、实时的美股和 OPRA 期权行情，应评估 Polygon.io、Alpaca、Tradier 等付费或半付费数据源。商业使用、转发数据、自动交易前必须确认数据授权、交易所授权和供应商条款。
 
