@@ -67,6 +67,40 @@ py -3.12 -m polybot options TSLA --expiration 2026-05-15 --side both
 
 若需要稳定、完整、实时的美股和 OPRA 期权行情，应评估 Polygon.io、Alpaca、Tradier 等付费或半付费数据源。商业使用、转发数据、自动交易前必须确认数据授权、交易所授权和供应商条款。
 
+## 每日美股收盘邮件日报
+
+`daily-report` 是只读日报命令，默认读取 `QQQ`、`NVDA`、`TSM`、`BABA` 的日线数据，生成纯文本邮件。内容包含最新收盘价、日涨跌幅、20 日均线、50 日均线、52 周高低点和数据源说明，不包含成交量，不会交易、下单或读取任何钱包信息。
+
+本地预览邮件正文：
+
+```bash
+py -3.12 -m polybot daily-report --config config/daily_report.example.yml --dry-run
+```
+
+本地发送邮件前，需要在当前 shell 设置这些环境变量：
+
+```powershell
+$env:QQ_SMTP_USER = "<QQ 邮箱地址>"
+$env:QQ_SMTP_AUTH_CODE = "<QQ 邮箱 SMTP 授权码>"
+$env:ALERT_EMAIL_TO = "<收件邮箱地址>"
+py -3.12 -m polybot daily-report --config config/daily_report.example.yml
+```
+
+GitHub Actions 定时任务位于仓库根目录 `.github/workflows/us-stock-daily-report.yml`。cron 为 `0 2 * * 2-6`，对应北京时间周二到周六 10:00，用于覆盖美股交易日收盘后的日报发送。
+
+启用 GitHub Actions 发送邮件前，在仓库 `Settings -> Secrets and variables -> Actions` 添加以下 Secrets：
+
+- `QQ_SMTP_USER`
+- `QQ_SMTP_AUTH_CODE`
+- `ALERT_EMAIL_TO`
+
+可选 Secrets 或环境变量：
+
+- `QQ_SMTP_HOST`：默认 `smtp.qq.com`
+- `QQ_SMTP_PORT`：默认 `465`
+
+不要把 QQ 邮箱授权信息写入代码、README、测试、日志或提交记录。若要修改观察列表，复制并编辑 `config/daily_report.example.yml` 中的 `symbols`。
+
 ## 安全模型
 
 真实交易必须同时满足：

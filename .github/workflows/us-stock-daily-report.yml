@@ -1,0 +1,38 @@
+name: US Stock Daily Report
+
+on:
+  schedule:
+    - cron: "0 2 * * 2-6"
+  workflow_dispatch:
+
+jobs:
+  send-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package
+        working-directory: code
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run tests for report modules
+        working-directory: code
+        run: |
+          python -m ruff check .
+          python -m pytest tests/test_daily_stock_report.py tests/test_email_renderer.py tests/test_emailer.py tests/test_cli.py -v
+
+      - name: Send daily report
+        working-directory: code
+        env:
+          QQ_SMTP_USER: ${{ secrets.QQ_SMTP_USER }}
+          QQ_SMTP_AUTH_CODE: ${{ secrets.QQ_SMTP_AUTH_CODE }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+        run: python -m polybot daily-report --config config/daily_report.example.yml

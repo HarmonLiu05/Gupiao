@@ -1,16 +1,21 @@
 import json
+import os
 from pathlib import Path
 from typing import Literal
 
 import pandas as pd
 from pydantic import BaseModel
 import typer
+import yaml
 
 from polybot.clients.gamma import GammaClient
 from polybot.clients.geoblock import assert_live_allowed, check_geoblock
 from polybot.clients.yahoo_market_data import YahooMarketDataClient
 from polybot.config import Settings
 from polybot.marketdata.formatters import format_records
+from polybot.notifications.emailer import SmtpEmailConfig, send_email
+from polybot.reports.daily_stock import build_daily_stock_report
+from polybot.reports.email_renderer import render_daily_stock_email
 
 app = typer.Typer()
 
@@ -54,6 +59,19 @@ def _run_market_data(action):
     except Exception as exc:
         typer.echo(f"market data unavailable: {exc}")
         raise typer.Exit(code=1) from exc
+
+
+def _load_yaml(path: Path) -> dict:
+    with path.open("r", encoding="utf-8") as file:
+        return yaml.safe_load(file) or {}
+
+
+def _require_env(name: str) -> str:
+    value = os.environ.get(name)
+    if not value:
+        typer.echo(f"missing required environment variable: {name}")
+        raise typer.Exit(code=2)
+    return value
 
 
 @app.command()
@@ -157,6 +175,49 @@ def options_chain(
         for contract in chain.contracts
     ]
     typer.echo(format_records(rows, output=output))
+
+
+@app.command("daily-report")
+def daily_report(
+    config: Path = typer.Option(Path("config/daily_report.example.yml")),
+    dry_run: bool = typer.Option(False),
+) -> None:
+    config_data = _load_yaml(config)
+    timezone = config_data.get("timezone", "Asia/Shanghai")
+    title = config_data.get("report_title", "美股收盘日报")
+    symbols = config_data.get("symbols") or ["QQQ", "NVDA", "TSM", "BABA"]
+    indicators = config_data.get("indicators") or {}
+    mail = config_data.get("mail") or {}
+    lookback_period = indicators.get("lookback_period", "1y")
+    subject_prefix = mail.get("subject_prefix", "美股收盘日报")
+
+    email_config = None
+    if not dry_run:
+        email_config = SmtpEmailConfig(
+            host=os.environ.get("QQ_SMTP_HOST", "smtp.qq.com"),
+            port=int(os.environ.get("QQ_SMTP_PORT", "465")),
+            username=_require_env("QQ_SMTP_USER"),
+            auth_code=_require_env("QQ_SMTP_AUTH_CODE"),
+            to_address=_require_env("ALERT_EMAIL_TO"),
+        )
+
+    report = _run_market_data(
+        lambda: build_daily_stock_report(
+            symbols=[str(symbol) for symbol in symbols],
+            history_client=YahooMarketDataClient(),
+            lookback_period=lookback_period,
+            timezone=timezone,
+            title=title,
+        )
+    )
+    subject, body = render_daily_stock_email(report, subject_prefix=subject_prefix)
+    if dry_run:
+        typer.echo(f"Subject: {subject}")
+        typer.echo(body)
+        return
+
+    send_email(email_config, subject=subject, body=body)
+    typer.echo("daily report sent")
 
 
 @app.command("paper-run")

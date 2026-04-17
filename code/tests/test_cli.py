@@ -261,3 +261,43 @@ def test_options_command_rejects_invalid_side():
 
     assert result.exit_code == 2
     assert "side must be one of" in result.output
+
+
+def test_daily_report_dry_run_prints_email(monkeypatch, tmp_path):
+    config = tmp_path / "daily_report.yml"
+    config.write_text(
+        "timezone: Asia/Shanghai\n"
+        "symbols:\n"
+        "  - QQQ\n"
+        "mail:\n"
+        "  subject_prefix: 美股收盘日报\n"
+        "indicators:\n"
+        "  lookback_period: 1y\n",
+        encoding="utf-8",
+    )
+
+    class FakeClient:
+        def get_history(self, symbol, period="1y"):
+            import pandas as pd
+
+            return pd.DataFrame({"Close": [float(100 + i) for i in range(260)]})
+
+    monkeypatch.setattr("polybot.cli.YahooMarketDataClient", FakeClient)
+
+    result = CliRunner().invoke(app, ["daily-report", "--config", str(config), "--dry-run"])
+
+    assert result.exit_code == 0
+    assert "美股收盘日报" in result.output
+    assert "QQQ" in result.output
+
+
+def test_daily_report_send_requires_email_env(monkeypatch, tmp_path):
+    config = tmp_path / "daily_report.yml"
+    config.write_text("symbols:\n  - QQQ\n", encoding="utf-8")
+    for name in ("QQ_SMTP_USER", "QQ_SMTP_AUTH_CODE", "ALERT_EMAIL_TO"):
+        monkeypatch.delenv(name, raising=False)
+
+    result = CliRunner().invoke(app, ["daily-report", "--config", str(config)])
+
+    assert result.exit_code == 2
+    assert "QQ_SMTP_USER" in result.output

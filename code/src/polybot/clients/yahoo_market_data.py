@@ -74,6 +74,10 @@ class YahooMarketDataClient:
         ticker = self._ticker_factory(symbol.upper())
         return [str(item) for item in ticker.options]
 
+    def get_history(self, symbol: str, period: str = "1y") -> pd.DataFrame:
+        ticker = self._ticker_factory(symbol.upper())
+        return ticker.history(period=period)
+
     def get_option_chain(
         self,
         symbol: str,
