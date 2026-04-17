@@ -15,10 +15,38 @@ python -m pip install -e ".[dev]"
 ```bash
 py -3.12 -m polybot geocheck
 py -3.12 -m polybot markets --query "fed"
+py -3.12 -m polybot quote AAPL
+py -3.12 -m polybot options AAPL --side calls --min-strike 200 --max-strike 230
 py -3.12 -m polybot paper-run --markets config/markets.example.json --fair-values config/fair_values.example.csv
 py -3.12 -m polybot live-run --markets config/markets.example.json --fair-values config/fair_values.example.csv
 py -3.12 -m polybot cancel-all --market <condition_id>
 ```
+
+## 美股行情查询
+
+本项目提供只读美股行情命令，不会下单，也不会读取钱包私钥。
+
+查看股票报价：
+
+```bash
+py -3.12 -m polybot quote AAPL
+```
+
+查看期权链：
+
+```bash
+py -3.12 -m polybot options AAPL --side calls --min-strike 200 --max-strike 230
+```
+
+指定到期日并同时查看 calls 和 puts：
+
+```bash
+py -3.12 -m polybot options TSLA --expiration 2026-05-15 --side both
+```
+
+`yfinance` 适合个人研究和低频观察。它不是官方交易级实时行情源，不建议用于真实交易决策。股票日线、延迟报价和低频观察通常有免费方案；美股期权链可以免费拉取部分字段，但完整、稳定、实时的 OPRA 期权报价通常需要付费。
+
+若需要稳定、完整、实时的美股和 OPRA 期权行情，应评估 Polygon.io、Alpaca、Tradier 等付费或半付费数据源。商业使用、转发数据、自动交易前必须确认数据授权、交易所授权和供应商条款。
 
 ## 安全模型
 
@@ -39,7 +67,7 @@ py -3.12 -m polybot cancel-all --market <condition_id>
 
 - 当前司法辖区、用户身份和平台规则允许使用 Polymarket。
 - geoblock 检查返回 `blocked=false`。
-- `.env` 中的 secrets、钱包地址、funder address 和 API credentials 有效。
+- `.env` 中的敏感配置、钱包地址、funder address 和 API credentials 有效。
 - 钱包余额和 allowance 足够。
 - `POLYBOT_LIVE_TRADING=true` 和 `POLYBOT_ACK_RISK=true` 均已显式开启。
 - 市场 allowlist、单笔限额、单市场限额、日亏损限额和策略参数已经通过 paper trading 与回测验证。

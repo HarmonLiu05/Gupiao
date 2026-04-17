@@ -6,9 +6,14 @@ import typer
 
 from polybot.clients.gamma import GammaClient
 from polybot.clients.geoblock import assert_live_allowed, check_geoblock
+from polybot.clients.yahoo_market_data import YahooMarketDataClient
 from polybot.config import Settings
 
 app = typer.Typer()
+
+
+def _display(value: object) -> str:
+    return "" if value is None else str(value)
 
 
 @app.command()
@@ -29,6 +34,50 @@ def markets(query: str = typer.Option("")) -> None:
             typer.echo(f"{market.condition_id}\t{market.question}")
     finally:
         client.close()
+
+
+@app.command()
+def quote(symbol: str) -> None:
+    market_data = YahooMarketDataClient()
+    item = market_data.get_quote(symbol)
+    typer.echo(
+        "symbol\tlast_price\tcurrency\tprevious_close\tmarket_cap\n"
+        f"{item.symbol}\t{_display(item.last_price)}\t{_display(item.currency)}\t"
+        f"{_display(item.previous_close)}\t{_display(item.market_cap)}"
+    )
+
+
+@app.command("options")
+def options_chain(
+    symbol: str,
+    expiration: str | None = typer.Option(None),
+    side: str = typer.Option("both"),
+    min_strike: float | None = typer.Option(None),
+    max_strike: float | None = typer.Option(None),
+) -> None:
+    if side not in {"calls", "puts", "both"}:
+        typer.echo("side must be one of: calls, puts, both")
+        raise typer.Exit(code=2)
+
+    market_data = YahooMarketDataClient()
+    chain = market_data.get_option_chain(
+        symbol,
+        expiration=expiration,
+        side=side,
+        min_strike=min_strike,
+        max_strike=max_strike,
+    )
+    typer.echo(
+        "symbol\texpiration\tcontract\tside\tstrike\tlast_price\tbid\task\t"
+        "volume\topen_interest\tiv"
+    )
+    for contract in chain.contracts:
+        typer.echo(
+            f"{chain.symbol}\t{chain.expiration}\t{contract.contract_symbol}\t"
+            f"{contract.side}\t{contract.strike}\t{_display(contract.last_price)}\t"
+            f"{_display(contract.bid)}\t{_display(contract.ask)}\t{_display(contract.volume)}\t"
+            f"{_display(contract.open_interest)}\t{_display(contract.implied_volatility)}"
+        )
 
 
 @app.command("paper-run")

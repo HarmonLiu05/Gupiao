@@ -84,3 +84,50 @@
   - `py -3.12 -m polybot geocheck`，结果：通过，输出 `blocked=True country=TW region=TPE`。
   - `py -3.12 -m polybot markets --query "election"`，结果：通过，成功返回市场列表。
 - 结果：计划中的 paper mode、测试、lint 和安全 smoke commands 已完成。由于 geoblock 返回 blocked，真实交易不得启用。
+
+---
+
+## 计划反馈：美股与美股期权行情脚本完善计划
+
+### 计划信息
+
+- 来源：`E:\4.17_coding\plan\plan2-us-market-data-script.md`
+- 日期：2026-04-17
+- 范围：在 `code/` Python 包中新增或修正只读美股股票报价与美股期权链查询，使用 `yfinance`，不接交易、不下单。
+
+### 计划评审
+
+- 需求清晰度：清楚。计划明确要求只读行情查询，新增 `quote` 和 `options` 命令，补齐 yfinance 字段兼容、期权链过滤、README 中文说明、真实数据 smoke test、测试和 lint。
+- 关键假设：
+  - 当前工作区已有疑似由另一个窗口写入的未提交改动，必须先审查并在其基础上修正。
+  - `yfinance` 免费数据源可能受网络、Yahoo 限流或数据授权影响，真实数据 smoke test 失败时需要区分程序错误和数据源限制。
+  - 期权 `bid` / `ask` 可能为空，计划明确不应作为程序失败。
+- 风险点：
+  - 不能把行情查询和 Polymarket live trading、钱包、私钥、下单逻辑耦合。
+  - CLI 的 `side` 校验需要给出明确用户错误，而不是 Python traceback。
+  - `fast_info` 在不同 yfinance 版本或 fake object 中可能同时表现为 dict 或属性式对象，需要兼容。
+- 验证方式：
+  - 先运行当前测试确认基线。
+  - 针对 `quote` 和 `options` 先补测试，再修实现。
+  - 运行 `py -3.12 -m pytest -v --basetemp .pytest_tmp`、`py -3.12 -m ruff check .`、计划要求的 smoke commands 和 git diff 检查。
+- 执行决定：计划可执行。当前存在未提交改动，先审查现状并保留用户/其他窗口已有工作，只对美股行情相关文件做必要修正。
+
+### 执行记录
+
+- 已修改内容：
+  - 在 `code/pyproject.toml` 中加入 `yfinance>=0.2.66`。
+  - 新增 `code/src/polybot/clients/yahoo_market_data.py`，提供只读 Yahoo Finance 股票报价和期权链客户端。
+  - 在 `code/src/polybot/cli.py` 中新增 `quote` 和 `options` 命令，支持 `--expiration`、`--side`、`--min-strike`、`--max-strike`，并确保 0 值不会被误显示为空。
+  - 新增和扩展 `code/tests/test_yahoo_market_data.py`、`code/tests/test_cli.py`，覆盖 snake_case/camelCase fast_info、默认最近到期日、非法 side、CLI 输出和 0 值显示。
+  - 在 `code/README.md` 中新增“美股行情查询”中文说明，并说明免费数据源和 OPRA 期权数据限制。
+- 已运行命令：
+  - `git status --short`，结果：已有 `code/pyproject.toml`、`code/src/polybot/cli.py`、`code/tests/test_cli.py` 修改，以及 `yahoo_market_data.py`、`test_yahoo_market_data.py`、`plan2` 新文件。
+  - `py -3.12 --version`，结果：Python 3.12.3。
+  - `py -3.12 -m pip install -e ".[dev]"`，结果：安装成功，`yfinance` 已安装。
+  - `py -3.12 -m pytest -v --basetemp .pytest_tmp`，结果：30 个测试全部通过。
+  - `py -3.12 -m ruff check .`，结果：通过。
+  - `Select-String -Path README.md -Pattern "PRIVATE_KEY|SECRET|TOKEN|PASSWORD"`，结果：无输出。
+  - `py -3.12 -m polybot quote AAPL`，结果：输出 AAPL 报价，`last_price` 不为空。
+  - `py -3.12 -m polybot options AAPL --side calls --min-strike 200 --max-strike 230`，结果：输出期权链表头和 8 条 call 合约。
+  - `py -3.12 -m polybot options SPY --side both --min-strike 400 --max-strike 700`，结果：输出期权链表头和 293 条合约数据；部分 bid/ask 为 0.0，属于免费 Yahoo 数据源限制。
+- 结果：计划已执行完成。所有新增功能为只读行情查询，没有接入交易下单逻辑。
