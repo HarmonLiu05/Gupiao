@@ -301,3 +301,33 @@ def test_daily_report_send_requires_email_env(monkeypatch, tmp_path):
 
     assert result.exit_code == 2
     assert "QQ_SMTP_USER" in result.output
+
+
+def test_daily_report_send_attaches_table_png(monkeypatch, tmp_path):
+    config = tmp_path / "daily_report.yml"
+    config.write_text("symbols:\n  - QQQ\n", encoding="utf-8")
+    monkeypatch.setenv("QQ_SMTP_USER", "sender@qq.com")
+    monkeypatch.setenv("QQ_SMTP_AUTH_CODE", "auth-code")
+    monkeypatch.setenv("ALERT_EMAIL_TO", "receiver@example.com")
+    sent = {}
+
+    class FakeClient:
+        def get_history(self, symbol, period="1y"):
+            import pandas as pd
+
+            return pd.DataFrame({"Close": [float(100 + i) for i in range(260)]})
+
+    def fake_send_email(config, subject, body, attachments=None):
+        sent["subject"] = subject
+        sent["attachments"] = attachments or []
+
+    monkeypatch.setattr("polybot.cli.YahooMarketDataClient", FakeClient)
+    monkeypatch.setattr("polybot.cli.send_email", fake_send_email)
+
+    result = CliRunner().invoke(app, ["daily-report", "--config", str(config)])
+
+    assert result.exit_code == 0
+    assert sent["subject"].startswith("美股收盘日报")
+    assert sent["attachments"][0][0] == "daily-stock-report.png"
+    assert sent["attachments"][0][1].startswith(b"\x89PNG\r\n\x1a\n")
+    assert sent["attachments"][0][2] == "image/png"

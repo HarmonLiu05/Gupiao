@@ -15,7 +15,7 @@ from polybot.config import Settings
 from polybot.marketdata.formatters import format_records
 from polybot.notifications.emailer import SmtpEmailConfig, send_email
 from polybot.reports.daily_stock import build_daily_stock_report
-from polybot.reports.email_renderer import render_daily_stock_email
+from polybot.reports.email_renderer import render_daily_stock_email, render_daily_stock_table_png
 
 app = typer.Typer()
 
@@ -216,7 +216,13 @@ def daily_report(
         typer.echo(body)
         return
 
-    send_email(email_config, subject=subject, body=body)
+    table_png = render_daily_stock_table_png(report)
+    send_email(
+        email_config,
+        subject=subject,
+        body=body,
+        attachments=[("daily-stock-report.png", table_png, "image/png")],
+    )
     typer.echo("daily report sent")
 
 
