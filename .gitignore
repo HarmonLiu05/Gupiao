@@ -1,0 +1,10 @@
+.env
+.polybot/
+*.sqlite3
+*.db
+__pycache__/
+.pytest_cache/
+.pytest_tmp/
+*.egg-info/
+build/
+dist/

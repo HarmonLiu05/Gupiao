@@ -1,0 +1,9 @@
+{
+  "allowlist": ["example-condition-id"],
+  "limits": {
+    "example-condition-id": {
+      "max_order_notional": "10",
+      "max_market_notional": "50"
+    }
+  }
+}
