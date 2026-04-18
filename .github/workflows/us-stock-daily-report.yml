@@ -37,4 +37,4 @@ jobs:
           QQ_SMTP_USER: ${{ secrets.QQ_SMTP_USER }}
           QQ_SMTP_AUTH_CODE: ${{ secrets.QQ_SMTP_AUTH_CODE }}
           ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
-        run: python -m polybot daily-report --config config/daily_report.example.yml
+        run: python -m polybot daily-report --config config/gui/daily_report.yml
