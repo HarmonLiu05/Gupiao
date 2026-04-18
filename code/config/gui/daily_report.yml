@@ -1,0 +1,16 @@
+timezone: Asia/Shanghai
+report_title: 美股收盘日报
+symbols:
+- QQQ
+- NVDA
+- TSM
+- BABA
+- MSFT
+- AAPL
+mail:
+  subject_prefix: 美股收盘日报
+indicators:
+  moving_average_windows:
+  - 20
+  - 50
+  lookback_period: 1y
