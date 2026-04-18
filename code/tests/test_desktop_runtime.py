@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from polybot.desktop.runtime import build_app_paths, resolve_repo_root
 
 

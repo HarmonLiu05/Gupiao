@@ -125,3 +125,30 @@ GitHub Actions 定时任务位于仓库根目录 `.github/workflows/us-stock-dai
 - `POLYBOT_LIVE_TRADING=true` 和 `POLYBOT_ACK_RISK=true` 均已显式开启。
 - 市场 allowlist、单笔限额、单市场限额、日亏损限额和策略参数已经通过 paper trading 与回测验证。
 - live adapter 测试只使用 mock，人工确认命令不会绕过风控或合规 gate。
+## 本地桌面程序
+
+桌面程序用于编辑日报追踪股票代码、保存时自动校验最近收盘价、立即发送日报邮件，以及只提交并推送 GUI 自管配置文件。
+
+开发环境直接运行：
+
+```powershell
+py -3.12 -m pip install -e ".[dev]"
+py -3.12 -m polybot.desktop.app
+```
+
+打包 Windows `.exe`：
+
+```powershell
+Set-Location code
+powershell -ExecutionPolicy Bypass -File .\scripts\build_desktop.ps1
+```
+
+GUI 正式配置文件：
+
+- `config/gui/daily_report.yml`
+
+GUI 仍然依赖以下环境变量发送邮件：
+
+- `QQ_SMTP_USER`
+- `QQ_SMTP_AUTH_CODE`
+- `ALERT_EMAIL_TO`
