@@ -6,7 +6,6 @@ symbols:
 - TSM
 - BABA
 - MSFT
-- AAPL
 mail:
   subject_prefix: 美股收盘日报
 indicators:
